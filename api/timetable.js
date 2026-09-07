@@ -52,7 +52,7 @@ function validate(data) {
 }
 
 async function readPublishedData() {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return fallback;
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) return fallback;
 
   const result = await list({ prefix: PATHNAME, limit: 1 });
   const current = result.blobs.find(blob => blob.pathname === PATHNAME);
@@ -74,7 +74,7 @@ export async function GET() {
 export async function POST(request) {
   if (!passwordIsConfigured()) return response({ error: "ADMIN_PASSWORD is not configured." }, 503);
   if (!isAuthenticated(request)) return response({ error: "Authentication required." }, 401);
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return response({ error: "Vercel Blob storage is not connected." }, 503);
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) return response({ error: "Vercel Blob storage is not connected." }, 503);
 
   try {
     const data = await request.json();
