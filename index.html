@@ -58,11 +58,20 @@
       </label>
     </section>
 
+    <section class="workspace-bar" style="margin-top: -12px;">
+      <div style="flex: 1;">
+        <strong>Notification Banner</strong>
+        <input id="notificationText" type="text" style="width: 100%; margin-top: 8px; padding: 8px;" placeholder="Enter an important announcement or leave blank to hide..." autocomplete="off" />
+      </div>
+    </section>
+
     <nav class="tabs" aria-label="Admin sections">
       <button class="tab active" data-tab="courses" type="button">Courses</button>
       <button class="tab" data-tab="schedule" type="button">Schedule</button>
       <button class="tab" data-tab="times" type="button">Time slots</button>
       <button class="tab" data-tab="programs" type="button">Programs</button>
+      <button class="tab" data-tab="resources" type="button">Resources</button>
+      <button class="tab" data-tab="assignments" type="button">Assignments</button>
     </nav>
 
     <section id="coursesPanel" class="panel active">
@@ -72,7 +81,7 @@
 
     <section id="schedulePanel" class="panel">
       <div class="panel-heading"><div><h2>Class schedule</h2><p>Assign each course to its day and time.</p></div><button id="addClassBtn" type="button">Add class</button></div>
-      <div class="table-scroll"><table><thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Lab</th><th></th></tr></thead><tbody id="scheduleRows"></tbody></table></div>
+      <div class="table-scroll"><table><thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Lab</th><th>Cancelled</th><th></th></tr></thead><tbody id="scheduleRows"></tbody></table></div>
     </section>
 
     <section id="timesPanel" class="panel">
@@ -83,6 +92,16 @@
     <section id="programsPanel" class="panel">
       <div class="panel-heading"><div><h2>Programs</h2><p>Choose the elective courses available to each program.</p></div><button id="addProgramBtn" type="button">Add program</button></div>
       <div id="programRows" class="program-list"></div>
+    </section>
+
+    <section id="resourcesPanel" class="panel">
+      <div class="panel-heading"><div><h2>Resource Hub</h2><p>Approve or delete resources submitted by users.</p></div></div>
+      <div class="table-scroll"><table><thead><tr><th>Title</th><th>Subject</th><th>Added By</th><th>Approved</th><th></th></tr></thead><tbody id="resourceRows"></tbody></table></div>
+    </section>
+    
+    <section id="assignmentsPanel" class="panel">
+      <div class="panel-heading"><div><h2>Assignments</h2><p>Manage pending assignments and deadlines for courses.</p></div><button id="addAssignmentBtn" type="button">Add assignment</button></div>
+      <div class="table-scroll"><table><thead><tr><th>Course</th><th>Title</th><th>URL</th><th>Deadline</th><th></th></tr></thead><tbody id="assignmentRows"></tbody></table></div>
     </section>
   </main>
   </div>

@@ -1,6 +1,7 @@
 const API_URL = "/api/timetable";
 const AUTH_URL = "/api/auth";
 let data = null;
+let resourcesData = [];
 let dirty = false;
 let toastTimer = null;
 
@@ -97,6 +98,7 @@ function renderSummary() {
     : "Not published";
   $("#courseCount").textContent = data.COURSES.length;
   $("#classCount").textContent = data.SCHEDULE.length;
+  $("#notificationText").value = data.notification || "";
 }
 
 function renderCourses() {
@@ -136,9 +138,10 @@ function renderSchedule() {
       <td><select data-collection="SCHEDULE" data-index="${index}" data-field="time">${options(data.TIMES, item.time)}</select></td>
       <td><select data-collection="SCHEDULE" data-index="${index}" data-field="course">${courseOptions.map(course => `<option value="${escapeHtml(course.value)}" ${course.value === item.course ? "selected" : ""}>${escapeHtml(course.label)}</option>`).join("")}</select></td>
       <td class="check-cell"><input type="checkbox" data-collection="SCHEDULE" data-index="${index}" data-field="lab" ${item.lab ? "checked" : ""} aria-label="Lab class" /></td>
+      <td class="check-cell"><input type="checkbox" data-collection="SCHEDULE" data-index="${index}" data-field="cancelled" ${item.cancelled ? "checked" : ""} aria-label="Cancelled class" /></td>
       <td><button class="icon-button delete-class" data-index="${index}" type="button" title="Delete class" aria-label="Delete class">&times;</button></td>
     </tr>
-  `).join("") || `<tr><td colspan="5" class="empty">No classes scheduled.</td></tr>`;
+  `).join("") || `<tr><td colspan="6" class="empty">No classes scheduled.</td></tr>`;
 }
 
 function renderTimes() {
@@ -165,12 +168,39 @@ function renderPrograms() {
   `).join("") || `<p class="empty">No programs added.</p>`;
 }
 
+function renderResourceHub() {
+  $("#resourceRows").innerHTML = resourcesData.map((res, index) => `
+    <tr>
+      <td><a href="${escapeHtml(res.url)}" target="_blank" style="color: var(--blue);">${escapeHtml(res.title)}</a></td>
+      <td>${escapeHtml(res.subject)}</td>
+      <td>${escapeHtml(res.addedBy)}</td>
+      <td class="check-cell"><input type="checkbox" class="approve-resource" data-index="${index}" ${res.approved ? "checked" : ""} /></td>
+      <td><button class="icon-button delete-resource" data-index="${index}" type="button" title="Delete">&times;</button></td>
+    </tr>
+  `).join("") || `<tr><td colspan="5" class="empty">No resources submitted.</td></tr>`;
+}
+
+function renderAssignments() {
+  const courseOptions = data.COURSES.map(course => ({ value: course.id, label: course.shortName }));
+  $("#assignmentRows").innerHTML = (data.ASSIGNMENTS || []).map((assignment, index) => `
+    <tr>
+      <td><select data-collection="ASSIGNMENTS" data-index="${index}" data-field="courseId">${courseOptions.map(course => `<option value="${escapeHtml(course.value)}" ${course.value === assignment.courseId ? "selected" : ""}>${escapeHtml(course.label)}</option>`).join("")}</select></td>
+      <td><input class="name-input" data-collection="ASSIGNMENTS" data-index="${index}" data-field="title" value="${escapeHtml(assignment.title)}" aria-label="Assignment title" placeholder="E.g. Test Lab 3" /></td>
+      <td><input class="url-input" type="url" data-collection="ASSIGNMENTS" data-index="${index}" data-field="url" value="${escapeHtml(assignment.url)}" aria-label="Assignment URL" /></td>
+      <td><input class="name-input" data-collection="ASSIGNMENTS" data-index="${index}" data-field="deadline" value="${escapeHtml(assignment.deadline)}" aria-label="Deadline" placeholder="E.g. 11 Sept" /></td>
+      <td><button class="icon-button delete-assignment" data-index="${index}" type="button" title="Delete assignment">&times;</button></td>
+    </tr>
+  `).join("") || `<tr><td colspan="5" class="empty">No assignments added.</td></tr>`;
+}
+
 function renderAll() {
   renderSummary();
   renderCourses();
   renderSchedule();
   renderTimes();
   renderPrograms();
+  renderResourceHub();
+  renderAssignments();
 }
 
 function nextId(prefix, items) {
@@ -184,14 +214,20 @@ function validate() {
   if (!data.TIMES.length) return "Add at least one time slot.";
   if (data.COURSES.some(course => !course.name.trim() || !course.shortName.trim() || !course.code.trim())) return "Complete every course name, short name, and code.";
   if (data.PROGRAMS.some(program => !program.name.trim())) return "Complete every program name.";
+  if (data.ASSIGNMENTS && data.ASSIGNMENTS.some(a => !a.title.trim() || !a.url.trim())) return "Complete all assignment titles and URLs.";
   return "";
 }
 
 async function loadData() {
   try {
-    const response = await fetch(API_URL, { cache: "no-store" });
+    const [response, resResponse] = await Promise.all([
+      fetch(API_URL, { cache: "no-store", credentials: "same-origin" }),
+      fetch("/api/resources", { cache: "no-store", credentials: "same-origin" })
+    ]);
     if (!response.ok) throw new Error("Could not load timetable data.");
     data = await response.json();
+    if (!data.ASSIGNMENTS) data.ASSIGNMENTS = [];
+    resourcesData = resResponse.ok ? await resResponse.json() : [];
     renderAll();
     dirty = false;
     $("#publishBtn").disabled = true;
@@ -207,27 +243,44 @@ async function publish() {
   const validationError = validate();
   if (validationError) throw new Error(validationError);
 
-  const response = await fetch(API_URL, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(data)
-  });
+  const [response, resResponse] = await Promise.all([
+    fetch(API_URL, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(data)
+    }),
+    fetch("/api/resources", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(resourcesData)
+    })
+  ]);
+
   const result = await response.json();
   if (response.status === 401) {
     showLogin("Your session expired. Sign in again to continue.");
   }
   if (!response.ok) throw new Error(result.error || "Publish failed.");
+  if (!resResponse.ok) throw new Error("Resource publish failed.");
+  
   data = result;
+  resourcesData = await resResponse.json();
   dirty = false;
   renderSummary();
   $("#publishBtn").disabled = true;
   setSaveState("Published successfully", "saved");
-  showToast("Timetable changes are now live.");
+  showToast("Changes are now live.");
 }
 
 document.addEventListener("input", event => {
   const target = event.target;
+  if (target.id === "notificationText") {
+    data.notification = target.value;
+    markDirty();
+    return;
+  }
   if (target.matches("[data-collection][data-field]") && target.type !== "checkbox") {
     setValue(target.dataset.collection, Number(target.dataset.index), target.dataset.field, target.value);
   }
@@ -243,6 +296,10 @@ document.addEventListener("change", event => {
     program.electives = target.checked
       ? [...new Set([...program.electives, target.value])]
       : program.electives.filter(id => id !== target.value);
+    markDirty();
+  }
+  if (target.matches(".approve-resource")) {
+    resourcesData[Number(target.dataset.index)].approved = target.checked;
     markDirty();
   }
   if (target.matches(".time-input")) {
@@ -306,6 +363,20 @@ document.addEventListener("click", event => {
   if (button.matches(".delete-program")) {
     data.PROGRAMS.splice(Number(button.dataset.index), 1);
     markDirty(); renderPrograms(); renderSummary();
+  }
+  if (button.matches(".delete-resource")) {
+    resourcesData.splice(Number(button.dataset.index), 1);
+    markDirty(); renderResourceHub();
+  }
+  if (button.id === "addAssignmentBtn") {
+    if (!data.COURSES.length) { alert("Add a course first."); return; }
+    if (!data.ASSIGNMENTS) data.ASSIGNMENTS = [];
+    data.ASSIGNMENTS.push({ courseId: data.COURSES[0].id, title: "", url: "", deadline: "" });
+    markDirty(); renderAssignments();
+  }
+  if (button.matches(".delete-assignment")) {
+    data.ASSIGNMENTS.splice(Number(button.dataset.index), 1);
+    markDirty(); renderAssignments();
   }
   if (button.id === "publishBtn") {
     button.disabled = true;

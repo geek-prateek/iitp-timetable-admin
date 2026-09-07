@@ -21,7 +21,7 @@ function response(body, status = 200, extraHeaders = {}) {
 function validate(data) {
   if (!data || typeof data !== "object") return "Payload must be an object.";
 
-  for (const key of ["PROGRAMS", "COURSES", "SCHEDULE", "DAYS", "TIMES", "HOLIDAYS"]) {
+  for (const key of ["PROGRAMS", "COURSES", "SCHEDULE", "DAYS", "TIMES", "HOLIDAYS", "ASSIGNMENTS"]) {
     if (!Array.isArray(data[key])) return `${key} must be an array.`;
   }
 
