@@ -3,6 +3,7 @@ const AUTH_URL = "/api/auth";
 let data = null;
 let resourcesData = [];
 let dirty = false;
+let resourcesDirty = false;
 let toastTimer = null;
 
 const $ = selector => document.querySelector(selector);
@@ -243,31 +244,47 @@ async function publish() {
   const validationError = validate();
   if (validationError) throw new Error(validationError);
 
-  const [response, resResponse] = await Promise.all([
+  const requests = [
     fetch(API_URL, {
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(data)
-    }),
-    fetch("/api/resources", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(resourcesData)
     })
-  ]);
+  ];
+
+  if (resourcesDirty) {
+    requests.push(
+      fetch("/api/resources", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(resourcesData)
+      })
+    );
+  }
+
+  const responses = await Promise.all(requests);
+  const response = responses[0];
+  const resResponse = resourcesDirty ? responses[1] : null;
 
   const result = await response.json();
   if (response.status === 401) {
     showLogin("Your session expired. Sign in again to continue.");
   }
   if (!response.ok) throw new Error(result.error || "Publish failed.");
-  if (!resResponse.ok) throw new Error("Resource publish failed.");
+  if (resourcesDirty && !resResponse.ok) throw new Error("Resource publish failed.");
   
   data = result;
-  resourcesData = await resResponse.json();
+  if (resourcesDirty) {
+    resourcesData = await resResponse.json();
+  } else {
+    const r = await fetch("/api/resources");
+    if (r.ok) resourcesData = await r.json();
+  }
+  
   dirty = false;
+  resourcesDirty = false;
   renderSummary();
   $("#publishBtn").disabled = true;
   setSaveState("Published successfully", "saved");
@@ -300,7 +317,7 @@ document.addEventListener("change", event => {
   }
   if (target.matches(".approve-resource")) {
     resourcesData[Number(target.dataset.index)].approved = target.checked;
-    markDirty();
+    markResourcesDirty();
   }
   if (target.matches(".time-input")) {
     const index = Number(target.dataset.index);
@@ -366,7 +383,7 @@ document.addEventListener("click", event => {
   }
   if (button.matches(".delete-resource")) {
     resourcesData.splice(Number(button.dataset.index), 1);
-    markDirty(); renderResourceHub();
+    markResourcesDirty(); renderResourceHub();
   }
   if (button.id === "addAssignmentBtn") {
     if (!data.COURSES.length) { alert("Add a course first."); return; }
