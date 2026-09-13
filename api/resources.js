@@ -1,5 +1,6 @@
 import clientPromise from "../lib/mongodb.js";
 import { isAuthenticated } from "../lib/auth.js";
+import { verifyFirebaseToken } from "../lib/firebase.js";
 
 const DB_NAME = "timetable_db";
 const COLLECTION_NAME = "store";
@@ -12,7 +13,7 @@ function response(body, status = 200) {
       "content-type": "application/json; charset=utf-8",
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET, POST, OPTIONS",
-      "access-control-allow-headers": "content-type",
+      "access-control-allow-headers": "content-type, authorization",
       "cache-control": "no-store"
     }
   });
@@ -36,8 +37,17 @@ async function readResources() {
 
 export async function GET(request) {
   try {
+    const isAdmin = isAuthenticated(request);
+    
+    if (!isAdmin) {
+      const decoded = await verifyFirebaseToken(request.headers.get("authorization"));
+      if (!decoded || !decoded.email || !decoded.email.endsWith("@iitp.ac.in")) {
+        return response({ error: "Unauthorized. @iitp.ac.in authentication required." }, 401);
+      }
+    }
+
     let resources = await readResources();
-    if (!isAuthenticated(request)) {
+    if (!isAdmin) {
       resources = resources.filter(r => r.approved);
     }
     return response(resources);
@@ -55,9 +65,10 @@ export async function POST(request) {
     const payload = await request.json();
     const client = await clientPromise;
     const db = client.db(DB_NAME);
+    const isAdmin = isAuthenticated(request);
 
     // Admin saving full list
-    if (isAuthenticated(request) && Array.isArray(payload)) {
+    if (isAdmin && Array.isArray(payload)) {
       await db.collection(COLLECTION_NAME).updateOne(
         { _id: DOCUMENT_ID },
         { $set: { data: payload } },
@@ -66,7 +77,12 @@ export async function POST(request) {
       return response(payload);
     }
 
-    // Public user adding a single resource
+    // For public submissions, require Firebase Token
+    const decoded = await verifyFirebaseToken(request.headers.get("authorization"));
+    if (!decoded || !decoded.email || !decoded.email.endsWith("@iitp.ac.in")) {
+      return response({ error: "Unauthorized. @iitp.ac.in authentication required to submit." }, 401);
+    }
+
     if (!payload.title || !payload.url || !payload.type) {
       return response({ error: "Title, url, and type are required." }, 400);
     }

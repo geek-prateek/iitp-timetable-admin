@@ -1,6 +1,7 @@
 import clientPromise from "../lib/mongodb.js";
 import fallback from "../data/default-timetable.json" with { type: "json" };
 import { isAuthenticated, passwordIsConfigured } from "../lib/auth.js";
+import { verifyFirebaseToken } from "../lib/firebase.js";
 
 const DB_NAME = "timetable_db";
 const COLLECTION_NAME = "store";
@@ -13,7 +14,7 @@ function response(body, status = 200, extraHeaders = {}) {
       "content-type": "application/json; charset=utf-8",
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET, POST, OPTIONS",
-      "access-control-allow-headers": "content-type",
+      "access-control-allow-headers": "content-type, authorization",
       "cache-control": "no-store",
       ...extraHeaders
     }
@@ -69,8 +70,19 @@ async function readPublishedData() {
   }
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
+    // Admins editing the panel should always be allowed
+    const isAdmin = isAuthenticated(request);
+    
+    if (!isAdmin) {
+      // For the public frontend, verify Firebase Token and domain
+      const decoded = await verifyFirebaseToken(request.headers.get("authorization"));
+      if (!decoded || !decoded.email || !decoded.email.endsWith("@iitp.ac.in")) {
+        return response({ error: "Unauthorized. @iitp.ac.in authentication required." }, 401);
+      }
+    }
+
     return response(await readPublishedData());
   } catch (error) {
     return response({ error: error.message }, 500);
