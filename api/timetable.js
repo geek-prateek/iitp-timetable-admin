@@ -1,8 +1,10 @@
-import { list, put } from "@vercel/blob";
+import clientPromise from "../lib/mongodb.js";
 import fallback from "../data/default-timetable.json" with { type: "json" };
 import { isAuthenticated, passwordIsConfigured } from "../lib/auth.js";
 
-const PATHNAME = "iitp-timetable/current.json";
+const DB_NAME = "timetable_db";
+const COLLECTION_NAME = "store";
+const DOCUMENT_ID = "current_timetable";
 
 function response(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
@@ -52,15 +54,19 @@ function validate(data) {
 }
 
 async function readPublishedData() {
-  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) return fallback;
+  if (!process.env.MONGODB_URI) return fallback;
 
-  const result = await list({ prefix: PATHNAME, limit: 1 });
-  const current = result.blobs.find(blob => blob.pathname === PATHNAME);
-  if (!current) return fallback;
-
-  const blobResponse = await fetch(current.url, { cache: "no-store" });
-  if (!blobResponse.ok) throw new Error("Published timetable could not be read.");
-  return blobResponse.json();
+  try {
+    const client = await clientPromise;
+    const db = client.db(DB_NAME);
+    const current = await db.collection(COLLECTION_NAME).findOne({ _id: DOCUMENT_ID });
+    
+    if (!current || !current.data) return fallback;
+    return current.data;
+  } catch (error) {
+    console.error("MongoDB read error:", error);
+    return fallback;
+  }
 }
 
 export async function GET() {
@@ -74,7 +80,7 @@ export async function GET() {
 export async function POST(request) {
   if (!passwordIsConfigured()) return response({ error: "ADMIN_PASSWORD is not configured." }, 503);
   if (!isAuthenticated(request)) return response({ error: "Authentication required." }, 401);
-  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) return response({ error: "Vercel Blob storage is not connected." }, 503);
+  if (!process.env.MONGODB_URI) return response({ error: "MongoDB is not connected." }, 503);
 
   try {
     const data = await request.json();
@@ -87,12 +93,13 @@ export async function POST(request) {
       updatedAt: new Date().toISOString()
     };
 
-    await put(PATHNAME, JSON.stringify(published), {
-      access: "public",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      contentType: "application/json"
-    });
+    const client = await clientPromise;
+    const db = client.db(DB_NAME);
+    await db.collection(COLLECTION_NAME).updateOne(
+      { _id: DOCUMENT_ID },
+      { $set: { data: published } },
+      { upsert: true }
+    );
 
     return response(published);
   } catch (error) {

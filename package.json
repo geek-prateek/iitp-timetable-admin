@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {},
   "dependencies": {
-    "@vercel/blob": "^2.0.0"
+    "@vercel/blob": "^2.0.0",
+    "mongodb": "^7.6.0"
   }
 }

@@ -1,7 +1,9 @@
-import { list, put } from "@vercel/blob";
+import clientPromise from "../lib/mongodb.js";
 import { isAuthenticated } from "../lib/auth.js";
 
-const PATHNAME = "iitp-timetable/resources.json";
+const DB_NAME = "timetable_db";
+const COLLECTION_NAME = "store";
+const DOCUMENT_ID = "resources";
 
 function response(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -17,15 +19,19 @@ function response(body, status = 200) {
 }
 
 async function readResources() {
-  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) return [];
+  if (!process.env.MONGODB_URI) return [];
 
-  const result = await list({ prefix: PATHNAME, limit: 1 });
-  const current = result.blobs.find(blob => blob.pathname === PATHNAME);
-  if (!current) return [];
-
-  const blobResponse = await fetch(current.url, { cache: "no-store" });
-  if (!blobResponse.ok) return [];
-  return blobResponse.json();
+  try {
+    const client = await clientPromise;
+    const db = client.db(DB_NAME);
+    const current = await db.collection(COLLECTION_NAME).findOne({ _id: DOCUMENT_ID });
+    
+    if (!current || !current.data) return [];
+    return current.data;
+  } catch (error) {
+    console.error("MongoDB read error:", error);
+    return [];
+  }
 }
 
 export async function GET(request) {
@@ -41,21 +47,22 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
-    return response({ error: "Vercel Blob storage is not connected." }, 503);
+  if (!process.env.MONGODB_URI) {
+    return response({ error: "MongoDB is not connected." }, 503);
   }
 
   try {
     const payload = await request.json();
+    const client = await clientPromise;
+    const db = client.db(DB_NAME);
 
     // Admin saving full list
     if (isAuthenticated(request) && Array.isArray(payload)) {
-      await put(PATHNAME, JSON.stringify(payload), {
-        access: "public",
-        addRandomSuffix: false,
-        allowOverwrite: true,
-        contentType: "application/json"
-      });
+      await db.collection(COLLECTION_NAME).updateOne(
+        { _id: DOCUMENT_ID },
+        { $set: { data: payload } },
+        { upsert: true }
+      );
       return response(payload);
     }
 
@@ -82,12 +89,11 @@ export async function POST(request) {
     resources.unshift(entry);
 
     // Save
-    await put(PATHNAME, JSON.stringify(resources), {
-      access: "public",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      contentType: "application/json"
-    });
+    await db.collection(COLLECTION_NAME).updateOne(
+      { _id: DOCUMENT_ID },
+      { $set: { data: resources } },
+      { upsert: true }
+    );
 
     // Public API only returns approved resources to them
     return response(resources.filter(r => r.approved));
