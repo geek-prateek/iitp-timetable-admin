@@ -39,6 +39,12 @@ function markDirty() {
   $("#publishBtn").disabled = false;
 }
 
+function markResourcesDirty() {
+  resourcesDirty = true;
+  setSaveState("Unpublished changes", "dirty");
+  $("#publishBtn").disabled = false;
+}
+
 function showLogin(message = "") {
   $("#adminApp").hidden = true;
   $("#loginView").hidden = false;
