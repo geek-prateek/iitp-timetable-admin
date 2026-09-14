@@ -72,17 +72,7 @@ async function readPublishedData() {
 
 export async function GET(request) {
   try {
-    // Admins editing the panel should always be allowed
-    const isAdmin = isAuthenticated(request);
-    
-    if (!isAdmin) {
-      // For the public frontend, verify Firebase Token and domain
-      const decoded = await verifyFirebaseToken(request.headers.get("authorization"));
-      if (!decoded || !decoded.email || !decoded.email.endsWith("@iitp.ac.in")) {
-        return response({ error: "Unauthorized. @iitp.ac.in authentication required." }, 401);
-      }
-    }
-
+    // Timetable is public (like the official IITP portal)
     return response(await readPublishedData());
   } catch (error) {
     return response({ error: error.message }, 500);
