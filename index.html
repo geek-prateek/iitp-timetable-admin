@@ -74,6 +74,7 @@
       <button class="tab" data-tab="programs" type="button">Programs</button>
       <button class="tab" data-tab="resources" type="button">Resources</button>
       <button class="tab" data-tab="assignments" type="button">Assignments</button>
+      <button class="tab" data-tab="groups" type="button">Class Groups</button>
     </nav>
 
     <section id="coursesPanel" class="panel active">
@@ -104,6 +105,11 @@
     <section id="assignmentsPanel" class="panel">
       <div class="panel-heading"><div><h2>Assignments</h2><p>Manage pending assignments and deadlines for courses.</p></div><button id="addAssignmentBtn" type="button">Add assignment</button></div>
       <div class="table-scroll"><table><thead><tr><th>Course</th><th>Title</th><th>URL</th><th>Deadline</th><th></th></tr></thead><tbody id="assignmentRows"></tbody></table></div>
+    </section>
+
+    <section id="groupsPanel" class="panel">
+      <div class="panel-heading"><div><h2>Class Groups</h2><p>Manage MS Teams invite links for class groups.</p></div></div>
+      <div class="table-scroll"><table><thead><tr><th>Degree</th><th>Specialization</th><th>Session</th><th>Teams Link</th><th>Actions</th></tr></thead><tbody id="groupsRows"></tbody></table></div>
     </section>
   </main>
   </div>

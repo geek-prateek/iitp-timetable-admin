@@ -208,6 +208,27 @@ function renderAll() {
   renderPrograms();
   renderResourceHub();
   renderAssignments();
+  renderGroups();
+}
+
+function renderGroups() {
+  const groupsList = window.groupsData && !window.groupsData.error ? window.groupsData : [];
+  $("#groupsRows").innerHTML = groupsList.map((group, index) => `
+    <tr>
+      <td>${escapeHtml(group.degree || 'N/A')}</td>
+      <td>${escapeHtml(group.specialization || 'N/A')}</td>
+      <td>${escapeHtml(group.session || '2026-27')}</td>
+      <td>
+        <input class="url-input" type="url" id="groupLink-${index}" value="${escapeHtml(group.link)}" aria-label="Teams Link" style="width:100%" />
+      </td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="save-group icon-button" data-index="${index}" type="button" title="Save Link" style="font-size:16px">💾</button>
+          <button class="delete-group icon-button" data-index="${index}" type="button" title="Delete Group">&times;</button>
+        </div>
+      </td>
+    </tr>
+  `).join("") || `<tr><td colspan="5" class="empty">No class groups found.</td></tr>`;
 }
 
 function nextId(prefix, items) {
@@ -227,14 +248,16 @@ function validate() {
 
 async function loadData() {
   try {
-    const [response, resResponse] = await Promise.all([
+    const [response, resResponse, groupsResponse] = await Promise.all([
       fetch(API_URL, { cache: "no-store", credentials: "same-origin" }),
-      fetch("/api/resources", { cache: "no-store", credentials: "same-origin" })
+      fetch("/api/resources", { cache: "no-store", credentials: "same-origin" }),
+      fetch("/api/groups", { cache: "no-store", credentials: "same-origin" })
     ]);
     if (!response.ok) throw new Error("Could not load timetable data.");
     data = await response.json();
     if (!data.ASSIGNMENTS) data.ASSIGNMENTS = [];
     resourcesData = resResponse.ok ? await resResponse.json() : [];
+    window.groupsData = groupsResponse.ok ? await groupsResponse.json() : [];
     renderAll();
     dirty = false;
     $("#publishBtn").disabled = true;
@@ -400,6 +423,51 @@ document.addEventListener("click", event => {
   if (button.matches(".delete-assignment")) {
     data.ASSIGNMENTS.splice(Number(button.dataset.index), 1);
     markDirty(); renderAssignments();
+  }
+  if (button.matches(".save-group")) {
+    const index = Number(button.dataset.index);
+    const group = window.groupsData[index];
+    const newLink = document.getElementById(`groupLink-${index}`).value.trim();
+    if (!/^https:\/\/teams\.microsoft\.com\/.+/i.test(newLink)) {
+      alert("Must be a valid Microsoft Teams link.");
+      return;
+    }
+    button.disabled = true;
+    fetch("/api/groups", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: group.id, link: newLink })
+    }).then(r => r.json()).then(res => {
+      button.disabled = false;
+      if (res.error) alert(res.error);
+      else { showToast("Class group link updated!"); group.link = newLink; }
+    }).catch(e => {
+      button.disabled = false;
+      alert("Failed to update: " + e.message);
+    });
+  }
+  if (button.matches(".delete-group")) {
+    if (!confirm("Are you sure you want to delete this class group?")) return;
+    const index = Number(button.dataset.index);
+    const group = window.groupsData[index];
+    button.disabled = true;
+    fetch("/api/groups", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: group.id })
+    }).then(r => r.json()).then(res => {
+      if (res.error) {
+        alert(res.error);
+        button.disabled = false;
+      } else {
+        window.groupsData.splice(index, 1);
+        renderGroups();
+        showToast("Class group deleted!");
+      }
+    }).catch(e => {
+      button.disabled = false;
+      alert("Failed to delete: " + e.message);
+    });
   }
   if (button.id === "publishBtn") {
     button.disabled = true;
