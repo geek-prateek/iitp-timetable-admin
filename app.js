@@ -249,22 +249,53 @@ function renderAll() {
 
 function renderGroups() {
   const groupsList = window.groupsData && !window.groupsData.error ? window.groupsData : [];
-  $("#groupsRows").innerHTML = groupsList.map((group, index) => `
-    <tr>
-      <td>${escapeHtml(group.degree || 'N/A')}</td>
-      <td>${escapeHtml(group.specialization || 'N/A')}</td>
-      <td>${escapeHtml(group.session || '2026-27')}</td>
-      <td>
-        <input class="url-input" type="url" id="groupLink-${index}" value="${escapeHtml(group.link)}" aria-label="Teams Link" style="width:100%" />
-      </td>
-      <td>
-        <div style="display:flex;gap:4px">
-          <button class="save-group icon-button" data-index="${index}" type="button" title="Save Link" style="font-size:16px">💾</button>
-          <button class="delete-group icon-button" data-index="${index}" type="button" title="Delete Group">&times;</button>
-        </div>
-      </td>
-    </tr>
-  `).join("") || `<tr><td colspan="5" class="empty">No class groups found.</td></tr>`;
+  $("#groupsRows").innerHTML = groupsList.map((group, index) => {
+    let submitterHtml = `<span style="color:var(--muted); font-size:12px;">--</span>`;
+    if (group.createdBy) {
+      if (group.createdBy.toLowerCase() === "admin") {
+        submitterHtml = `<span style="background: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🛡️ Admin</span>`;
+      } else {
+        submitterHtml = `<span style="background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; word-break: break-all;" title="Submitted by Student: ${escapeHtml(group.createdBy)}">🎓 ${escapeHtml(group.createdBy)}</span>`;
+      }
+    }
+
+    let dateStr = "";
+    const createdDate = group.createdAtFormatted || group.createdAt;
+    if (createdDate) {
+      try {
+        const d = new Date(createdDate._seconds ? createdDate._seconds * 1000 : createdDate);
+        if (!isNaN(d.getTime())) {
+          dateStr = d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+        }
+      } catch (e) {}
+    }
+
+    return `
+      <tr>
+        <td><strong>${escapeHtml(group.degree || 'N/A')}</strong></td>
+        <td><strong>${escapeHtml(group.specialization || 'N/A')}</strong></td>
+        <td>${escapeHtml(group.session || '2026-27')}</td>
+        <td>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input class="url-input" type="url" id="groupLink-${index}" value="${escapeHtml(group.link || '')}" aria-label="Teams Link" style="width:100%; min-width: 220px;" />
+            ${group.link ? `<a href="${escapeHtml(group.link)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; font-size:14px; padding:6px 10px; border:1px solid #ccc; border-radius:4px; background:#f9f9f9; line-height:1;" title="Test Teams invite link">↗</a>` : ''}
+          </div>
+        </td>
+        <td>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${submitterHtml}
+            ${dateStr ? `<span style="font-size: 11px; color: var(--muted);">${escapeHtml(dateStr)}</span>` : ''}
+          </div>
+        </td>
+        <td style="text-align: center;">
+          <div style="display:inline-flex; gap:6px; align-items: center; justify-content: center;">
+            <button class="save-group icon-button" data-index="${index}" type="button" title="Save Link" style="font-size:16px;">💾</button>
+            <button class="delete-group icon-button" data-index="${index}" type="button" title="Delete Group" style="font-size:18px;">&times;</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("") || `<tr><td colspan="6" class="empty">No class groups found. Click "+ Add Class Group" to create one.</td></tr>`;
 }
 
 function nextId(prefix, items) {
@@ -495,6 +526,68 @@ document.addEventListener("click", event => {
   if (button.matches(".delete-assignment")) {
     data.ASSIGNMENTS.splice(Number(button.dataset.index), 1);
     markDirty(); renderAssignments();
+  }
+  if (button.id === "addGroupBtn") {
+    const container = document.getElementById("newGroupContainer");
+    if (container) {
+      container.style.display = container.style.display === "none" ? "block" : "none";
+      if (container.style.display === "block") {
+        document.getElementById("newGroupSpec")?.focus();
+      }
+    }
+  }
+  if (button.id === "cancelNewGroupBtn") {
+    const container = document.getElementById("newGroupContainer");
+    if (container) container.style.display = "none";
+  }
+  if (button.id === "saveNewGroupBtn") {
+    const degree = document.getElementById("newGroupDegree").value.trim();
+    const spec = document.getElementById("newGroupSpec").value.trim();
+    const session = document.getElementById("newGroupSession").value.trim() || "2026-27";
+    const link = document.getElementById("newGroupLink").value.trim();
+
+    if (!degree || !spec) {
+      alert("Please enter both Degree and Specialization.");
+      return;
+    }
+    if (!/^https:\/\/teams\.microsoft\.com\/.+/i.test(link)) {
+      alert("Must be a valid Microsoft Teams link (starting with https://teams.microsoft.com/).");
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Saving...";
+
+    fetch("/api/groups", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ degree, specialization: spec, session, link })
+    })
+      .then(r => r.json())
+      .then(res => {
+        button.disabled = false;
+        button.innerHTML = '<span style="color:#ffffff !important; font-weight:700; margin:0; display:inline;">Save Group</span>';
+        if (res.error) {
+          alert(res.error);
+        } else {
+          showToast("Class group added successfully!");
+          document.getElementById("newGroupContainer").style.display = "none";
+          document.getElementById("newGroupSpec").value = "";
+          document.getElementById("newGroupLink").value = "";
+          // Refresh groups list from server
+          fetch("/api/groups", { cache: "no-store", credentials: "same-origin" })
+            .then(r => r.json())
+            .then(groups => {
+              window.groupsData = groups || [];
+              renderGroups();
+            });
+        }
+      })
+      .catch(e => {
+        button.disabled = false;
+        button.innerHTML = '<span style="color:#ffffff !important; font-weight:700; margin:0; display:inline;">Save Group</span>';
+        alert("Failed to save class group: " + e.message);
+      });
   }
   if (button.matches(".save-group")) {
     const index = Number(button.dataset.index);

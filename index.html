@@ -133,8 +133,59 @@
     </section>
 
     <section id="groupsPanel" class="panel">
-      <div class="panel-heading"><div><h2>Class Groups</h2><p>Manage MS Teams invite links for class groups.</p></div></div>
-      <div class="table-scroll"><table><thead><tr><th>Degree</th><th>Specialization</th><th>Session</th><th>Teams Link</th><th>Actions</th></tr></thead><tbody id="groupsRows"></tbody></table></div>
+      <div class="panel-heading">
+        <div>
+          <h2>Class Groups</h2>
+          <p>Manage MS Teams invite links for class groups created by students or administrators.</p>
+        </div>
+        <button id="addGroupBtn" type="button" class="primary" style="display:inline-flex; align-items:center; gap:6px; color:#ffffff !important; font-weight:700;">
+          <span style="color:#ffffff !important; font-weight:700; margin:0; display:inline;">+ Add Class Group</span>
+        </button>
+      </div>
+
+      <!-- Quick Add Class Group Form -->
+      <div id="newGroupContainer" style="display: none; background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--accent); padding: 18px; margin-bottom: 20px; box-shadow: 0 4px 14px rgba(0,0,0,0.04);">
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 16px;">Add New Class Group</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--muted);">Degree *</label>
+            <input id="newGroupDegree" type="text" placeholder="e.g. M.Tech, B.Tech, M.Sc" value="M.Tech" style="width:100%; min-height:38px; padding:7px 9px; border:1px solid #c9c9c3; background:#fff;" />
+          </div>
+          <div>
+            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--muted);">Specialization *</label>
+            <input id="newGroupSpec" type="text" placeholder="e.g. AI & DSE, CSE, Mechatronics" style="width:100%; min-height:38px; padding:7px 9px; border:1px solid #c9c9c3; background:#fff;" />
+          </div>
+          <div>
+            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--muted);">Session</label>
+            <input id="newGroupSession" type="text" placeholder="e.g. 2026-27" value="2026-27" style="width:100%; min-height:38px; padding:7px 9px; border:1px solid #c9c9c3; background:#fff;" />
+          </div>
+        </div>
+        <div style="margin-bottom: 14px;">
+          <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--muted);">Microsoft Teams Invite Link *</label>
+          <input id="newGroupLink" type="url" placeholder="https://teams.microsoft.com/l/chat/..." style="width:100%; min-height:38px; padding:7px 9px; border:1px solid #c9c9c3; background:#fff;" />
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="saveNewGroupBtn" type="button" class="primary" style="padding:8px 18px; color:#ffffff !important; font-weight:700;">
+            <span style="color:#ffffff !important; font-weight:700; margin:0; display:inline;">Save Group</span>
+          </button>
+          <button id="cancelNewGroupBtn" type="button" style="padding:8px 14px; background:transparent; border:1px solid #ccc; cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="min-width: 90px;">Degree</th>
+              <th style="min-width: 130px;">Specialization</th>
+              <th style="min-width: 90px;">Session</th>
+              <th style="min-width: 300px;">Teams Link</th>
+              <th style="min-width: 170px;">Added By</th>
+              <th style="text-align: center; width: 90px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="groupsRows"></tbody>
+        </table>
+      </div>
     </section>
   </main>
   </div>

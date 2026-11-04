@@ -23,7 +23,24 @@ export async function GET(request) {
   try {
     const db = admin.firestore();
     const snapshot = await db.collection("class_groups").get();
-    const groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const groups = snapshot.docs.map(doc => {
+      const d = doc.data();
+      let createdAtFormatted = "";
+      if (d.createdAt) {
+        if (typeof d.createdAt.toDate === "function") {
+          createdAtFormatted = d.createdAt.toDate().toISOString();
+        } else if (d.createdAt._seconds) {
+          createdAtFormatted = new Date(d.createdAt._seconds * 1000).toISOString();
+        } else if (typeof d.createdAt === "string") {
+          createdAtFormatted = d.createdAt;
+        }
+      }
+      return {
+        id: doc.id,
+        ...d,
+        createdAtFormatted
+      };
+    });
     return response(groups);
   } catch (error) {
     console.error("Firestore read error:", error);
@@ -38,22 +55,52 @@ export async function POST(request) {
 
   try {
     const payload = await request.json();
-    const { id, link } = payload;
+    const link = (payload.link || "").trim();
 
-    if (!id || !link) {
-      return response({ error: "Missing id or link." }, 400);
+    if (!link) {
+      return response({ error: "Missing link." }, 400);
     }
 
     if (!/^https:\/\/teams\.microsoft\.com\/.+/i.test(link)) {
-      return response({ error: "Must be a valid Microsoft Teams link." }, 400);
+      return response({ error: "Must be a valid Microsoft Teams link (starting with https://teams.microsoft.com/)." }, 400);
     }
 
     const db = admin.firestore();
-    await db.collection("class_groups").doc(id).update({
-      link: link
-    });
 
-    return response({ success: true });
+    // Updating existing group link
+    if (payload.id) {
+      await db.collection("class_groups").doc(payload.id).set({
+        link: link,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: "Admin"
+      }, { merge: true });
+      return response({ success: true, id: payload.id });
+    }
+
+    // Creating a new class group
+    const degree = (payload.degree || "").trim();
+    const specialization = (payload.specialization || "").trim();
+    const session = (payload.session || "2026-27").trim();
+
+    if (!degree || !specialization) {
+      return response({ error: "Degree and Specialization are required." }, 400);
+    }
+
+    const createSlug = (text) => (text || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const docId = `teams_${createSlug(degree)}_${createSlug(specialization)}`;
+
+    const newGroup = {
+      degree,
+      specialization,
+      session,
+      link,
+      createdBy: "Admin",
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection("class_groups").doc(docId).set(newGroup, { merge: true });
+
+    return response({ success: true, id: docId, ...newGroup });
   } catch (error) {
     console.error("Firestore update error:", error);
     return response({ error: error.message }, 500);
