@@ -1,7 +1,7 @@
 import clientPromise from "../lib/mongodb.js";
 import fallback from "../data/default-timetable.json" with { type: "json" };
 import { isAuthenticated, passwordIsConfigured } from "../lib/auth.js";
-import { verifyFirebaseToken } from "../lib/firebase.js";
+import { verifyFirebaseToken, sendAnnouncementNotification } from "../lib/firebase.js";
 
 const DB_NAME = "timetable_db";
 const COLLECTION_NAME = "store";
@@ -97,13 +97,25 @@ export async function POST(request) {
 
     const client = await clientPromise;
     const db = client.db(DB_NAME);
+
+    // Detect if notification changed or push was explicitly enabled
+    const existingDoc = await db.collection(COLLECTION_NAME).findOne({ _id: DOCUMENT_ID });
+    const prevNotification = (existingDoc?.data?.notification || "").trim();
+    const newNotification = (data.notification || "").trim();
+    const shouldSendPush = data.sendPushNotification === true || (newNotification !== "" && newNotification !== prevNotification);
+
+    let pushResult = null;
+    if (shouldSendPush && newNotification) {
+      pushResult = await sendAnnouncementNotification(newNotification);
+    }
+
     await db.collection(COLLECTION_NAME).updateOne(
       { _id: DOCUMENT_ID },
       { $set: { data: published } },
       { upsert: true }
     );
 
-    return response(published);
+    return response({ ...published, pushResult });
   } catch (error) {
     return response({ error: error.message || "Could not publish timetable." }, 500);
   }

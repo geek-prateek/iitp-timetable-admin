@@ -262,6 +262,15 @@ async function loadData() {
     dirty = false;
     $("#publishBtn").disabled = true;
     setSaveState("Published data loaded", "saved");
+
+    // Fetch subscriber count
+    fetch("/api/notifications", { credentials: "same-origin" })
+      .then(r => r.json())
+      .then(res => {
+        const el = $("#subscriberCount");
+        if (el && typeof res.subscriberCount === "number") el.textContent = res.subscriberCount;
+      })
+      .catch(() => {});
   } catch (error) {
     setSaveState(error.message, "error-state");
     $("#publishBtn").disabled = true;
@@ -273,12 +282,15 @@ async function publish() {
   const validationError = validate();
   if (validationError) throw new Error(validationError);
 
+  const sendPush = $("#pushNotificationCheck") ? $("#pushNotificationCheck").checked : true;
+  const payload = { ...data, sendPushNotification: sendPush };
+
   const requests = [
     fetch(API_URL, {
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(data)
+      body: JSON.stringify(payload)
     })
   ];
 
@@ -317,7 +329,16 @@ async function publish() {
   renderSummary();
   $("#publishBtn").disabled = true;
   setSaveState("Published successfully", "saved");
-  showToast("Changes are now live.");
+
+  if (result.pushResult) {
+    if (result.pushResult.success) {
+      showToast("Changes published & notification pushed to all mobiles! 📢");
+    } else {
+      showToast("Published. (Push notice: " + (result.pushResult.error || "no active devices") + ")");
+    }
+  } else {
+    showToast("Changes are now live.");
+  }
 }
 
 document.addEventListener("input", event => {
@@ -478,6 +499,45 @@ document.addEventListener("click", event => {
         showToast(error.message, true);
       })
       .finally(() => { button.disabled = !dirty; });
+  }
+  if (button.id === "broadcastPushBtn") {
+    const message = ($("#notificationText").value || "").trim();
+    if (!message) {
+      alert("Please enter an announcement in the notification banner field first.");
+      $("#notificationText").focus();
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to broadcast this announcement to all students' mobile phones now?\n\n"${message}"`)) {
+      return;
+    }
+
+    button.disabled = true;
+    const originalContent = button.innerHTML;
+    button.innerHTML = "<span>⏳ Sending...</span>";
+
+    fetch("/api/notifications", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "broadcast", message })
+    })
+      .then(r => r.json())
+      .then(res => {
+        button.disabled = false;
+        button.innerHTML = originalContent;
+        if (res.error) {
+          showToast("Broadcast failed: " + res.error, true);
+          alert("Broadcast failed: " + res.error);
+        } else {
+          showToast("Announcement broadcasted successfully to all devices! 📢");
+        }
+      })
+      .catch(err => {
+        button.disabled = false;
+        button.innerHTML = originalContent;
+        showToast("Error sending notification: " + err.message, true);
+      });
   }
 });
 

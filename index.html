@@ -62,8 +62,27 @@
 
     <section class="workspace-bar" style="margin-top: -12px;">
       <div style="flex: 1;">
-        <strong>Notification Banner</strong>
-        <input id="notificationText" type="text" style="width: 100%; margin-top: 8px; padding: 8px;" placeholder="Enter an important announcement or leave blank to hide..." autocomplete="off" />
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <strong>📢 Notification Banner & Announcements</strong>
+            <span>Updates appear on the portal banner and can be pushed directly to students' mobile phones.</span>
+          </div>
+          <div style="font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px;">
+            <span>📱 Active Devices: <strong id="subscriberCount" style="display:inline; color: var(--accent);">--</strong></span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: stretch; margin-top: 8px; flex-wrap: wrap;">
+          <input id="notificationText" type="text" style="flex: 1; min-width: 260px; padding: 10px 12px; font-size: 15px; border: 1px solid #bcbfba; background: #fff;" placeholder="Enter an announcement or leave blank to hide..." autocomplete="off" />
+          <button id="broadcastPushBtn" type="button" class="primary" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 0 16px;">
+            <span>🚀 Broadcast Push Now</span>
+          </button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+          <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; color: #333;">
+            <input type="checkbox" id="pushNotificationCheck" checked style="width: 16px; height: 16px; min-height: auto; cursor: pointer;" />
+            <span>Automatically broadcast push notification to all mobiles when publishing</span>
+          </label>
+        </div>
       </div>
     </section>
 
