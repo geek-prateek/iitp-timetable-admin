@@ -1,6 +1,6 @@
 import clientPromise from "../lib/mongodb.js";
 import { isAuthenticated, passwordIsConfigured } from "../lib/auth.js";
-import { sendAnnouncementNotification, subscribeDeviceToken } from "../lib/firebase.js";
+import { sendAnnouncementNotification, subscribeDeviceToken, unsubscribeDeviceToken } from "../lib/firebase.js";
 
 const DB_NAME = "timetable_db";
 const TOKENS_COLLECTION = "fcm_tokens";
@@ -79,7 +79,41 @@ export async function POST(request) {
       });
     }
 
-    // 2. Direct Announcement Broadcast (Admin Only)
+    // 2. Device Unsubscribe / Mute (Public)
+    if (action === "unsubscribe") {
+      const { token } = payload;
+      if (!token || typeof token !== "string") {
+        return response({ error: "Valid FCM token is required." }, 400);
+      }
+
+      const unsubResult = await unsubscribeDeviceToken(token);
+
+      if (process.env.MONGODB_URI) {
+        try {
+          const client = await clientPromise;
+          const db = client.db(DB_NAME);
+          await db.collection(TOKENS_COLLECTION).updateOne(
+            { token },
+            {
+              $set: {
+                announcementsEnabled: false,
+                unsubscribedAt: new Date()
+              }
+            }
+          );
+        } catch (dbErr) {
+          console.error("Failed to update unsubscribe in MongoDB:", dbErr);
+        }
+      }
+
+      return response({
+        success: true,
+        topicUnsubscribed: unsubResult.success,
+        topicError: unsubResult.error || null
+      });
+    }
+
+    // 3. Direct Announcement Broadcast (Admin Only)
     if (action === "broadcast") {
       if (!passwordIsConfigured()) {
         return response({ error: "ADMIN_PASSWORD is not configured." }, 503);
