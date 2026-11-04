@@ -192,12 +192,47 @@ function renderAssignments() {
   $("#assignmentRows").innerHTML = (data.ASSIGNMENTS || []).map((assignment, index) => `
     <tr>
       <td><select data-collection="ASSIGNMENTS" data-index="${index}" data-field="courseId">${courseOptions.map(course => `<option value="${escapeHtml(course.value)}" ${course.value === assignment.courseId ? "selected" : ""}>${escapeHtml(course.label)}</option>`).join("")}</select></td>
-      <td><input class="name-input" data-collection="ASSIGNMENTS" data-index="${index}" data-field="title" value="${escapeHtml(assignment.title)}" aria-label="Assignment title" placeholder="E.g. Test Lab 3" /></td>
+      <td><input class="name-input" data-collection="ASSIGNMENTS" data-index="${index}" data-field="title" value="${escapeHtml(assignment.title)}" aria-label="Class work title" placeholder="E.g. Lab Task 3 / Case Study" /></td>
       <td><input class="url-input" type="url" data-collection="ASSIGNMENTS" data-index="${index}" data-field="url" value="${escapeHtml(assignment.url)}" aria-label="Assignment URL" /></td>
       <td><input class="name-input" data-collection="ASSIGNMENTS" data-index="${index}" data-field="deadline" value="${escapeHtml(assignment.deadline)}" aria-label="Deadline" placeholder="E.g. 11 Sept" /></td>
-      <td><button class="icon-button delete-assignment" data-index="${index}" type="button" title="Delete assignment">&times;</button></td>
+      <td><button class="icon-button delete-assignment" data-index="${index}" type="button" title="Delete class work">&times;</button></td>
     </tr>
-  `).join("") || `<tr><td colspan="5" class="empty">No assignments added.</td></tr>`;
+  `).join("") || `<tr><td colspan="5" class="empty">No class work added.</td></tr>`;
+}
+
+function renderHolidays() {
+  if (!data.HOLIDAYS) data.HOLIDAYS = [];
+  data.HOLIDAYS.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+  $("#holidayRows").innerHTML = data.HOLIDAYS.map((holiday, index) => {
+    let dayName = "";
+    if (holiday.date) {
+      try {
+        const parts = holiday.date.split("-");
+        if (parts.length === 3) {
+          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          dayName = d.toLocaleDateString("en-US", { weekday: "long" });
+        }
+      } catch (e) {}
+    }
+
+    return `
+      <tr>
+        <td>
+          <input type="date" data-collection="HOLIDAYS" data-index="${index}" data-field="date" value="${escapeHtml(holiday.date || "")}" aria-label="Holiday date" style="width: 100%; min-width: 150px;" />
+        </td>
+        <td>
+          <input type="text" data-collection="HOLIDAYS" data-index="${index}" data-field="name" value="${escapeHtml(holiday.name || "")}" placeholder="E.g. Diwali / Chhath Puja" aria-label="Holiday name" style="width: 100%;" />
+        </td>
+        <td style="color: var(--muted); font-weight: 600; font-size: 13px;">
+          ${escapeHtml(dayName || "—")}
+        </td>
+        <td>
+          <button class="icon-button delete-holiday" data-index="${index}" type="button" title="Delete holiday">&times;</button>
+        </td>
+      </tr>
+    `;
+  }).join("") || `<tr><td colspan="4" class="empty">No holidays added.</td></tr>`;
 }
 
 function renderAll() {
@@ -208,27 +243,59 @@ function renderAll() {
   renderPrograms();
   renderResourceHub();
   renderAssignments();
+  renderHolidays();
   renderGroups();
 }
 
 function renderGroups() {
   const groupsList = window.groupsData && !window.groupsData.error ? window.groupsData : [];
-  $("#groupsRows").innerHTML = groupsList.map((group, index) => `
-    <tr>
-      <td>${escapeHtml(group.degree || 'N/A')}</td>
-      <td>${escapeHtml(group.specialization || 'N/A')}</td>
-      <td>${escapeHtml(group.session || '2026-27')}</td>
-      <td>
-        <input class="url-input" type="url" id="groupLink-${index}" value="${escapeHtml(group.link)}" aria-label="Teams Link" style="width:100%" />
-      </td>
-      <td>
-        <div style="display:flex;gap:4px">
-          <button class="save-group icon-button" data-index="${index}" type="button" title="Save Link" style="font-size:16px">💾</button>
-          <button class="delete-group icon-button" data-index="${index}" type="button" title="Delete Group">&times;</button>
-        </div>
-      </td>
-    </tr>
-  `).join("") || `<tr><td colspan="5" class="empty">No class groups found.</td></tr>`;
+  $("#groupsRows").innerHTML = groupsList.map((group, index) => {
+    let submitterHtml = `<span style="color:var(--muted); font-size:12px;">--</span>`;
+    if (group.createdBy) {
+      if (group.createdBy.toLowerCase() === "admin") {
+        submitterHtml = `<span style="background: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🛡️ Admin</span>`;
+      } else {
+        submitterHtml = `<span style="background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; word-break: break-all;" title="Submitted by Student: ${escapeHtml(group.createdBy)}">🎓 ${escapeHtml(group.createdBy)}</span>`;
+      }
+    }
+
+    let dateStr = "";
+    const createdDate = group.createdAtFormatted || group.createdAt;
+    if (createdDate) {
+      try {
+        const d = new Date(createdDate._seconds ? createdDate._seconds * 1000 : createdDate);
+        if (!isNaN(d.getTime())) {
+          dateStr = d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+        }
+      } catch (e) {}
+    }
+
+    return `
+      <tr>
+        <td><strong>${escapeHtml(group.degree || 'N/A')}</strong></td>
+        <td><strong>${escapeHtml(group.specialization || 'N/A')}</strong></td>
+        <td>${escapeHtml(group.session || '2026-27')}</td>
+        <td>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input class="url-input" type="url" id="groupLink-${index}" value="${escapeHtml(group.link || '')}" aria-label="Teams Link" style="width:100%; min-width: 220px;" />
+            ${group.link ? `<a href="${escapeHtml(group.link)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; font-size:14px; padding:6px 10px; border:1px solid #ccc; border-radius:4px; background:#f9f9f9; line-height:1;" title="Test Teams invite link">↗</a>` : ''}
+          </div>
+        </td>
+        <td>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${submitterHtml}
+            ${dateStr ? `<span style="font-size: 11px; color: var(--muted);">${escapeHtml(dateStr)}</span>` : ''}
+          </div>
+        </td>
+        <td style="text-align: center;">
+          <div style="display:inline-flex; gap:6px; align-items: center; justify-content: center;">
+            <button class="save-group icon-button" data-index="${index}" type="button" title="Save Link" style="font-size:16px;">💾</button>
+            <button class="delete-group icon-button" data-index="${index}" type="button" title="Delete Group" style="font-size:18px;">&times;</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("") || `<tr><td colspan="6" class="empty">No class groups found. Click "+ Add Class Group" to create one.</td></tr>`;
 }
 
 function nextId(prefix, items) {
@@ -242,7 +309,7 @@ function validate() {
   if (!data.TIMES.length) return "Add at least one time slot.";
   if (data.COURSES.some(course => !course.name.trim() || !course.shortName.trim() || !course.code.trim())) return "Complete every course name, short name, and code.";
   if (data.PROGRAMS.some(program => !program.name.trim())) return "Complete every program name.";
-  if (data.ASSIGNMENTS && data.ASSIGNMENTS.some(a => !a.title.trim() || !a.url.trim())) return "Complete all assignment titles and URLs.";
+  if (data.ASSIGNMENTS && data.ASSIGNMENTS.some(a => !a.title.trim() || !a.url.trim())) return "Complete all class work titles and URLs.";
   return "";
 }
 
@@ -256,6 +323,7 @@ async function loadData() {
     if (!response.ok) throw new Error("Could not load timetable data.");
     data = await response.json();
     if (!data.ASSIGNMENTS) data.ASSIGNMENTS = [];
+    if (!data.HOLIDAYS) data.HOLIDAYS = [];
     resourcesData = resResponse.ok ? await resResponse.json() : [];
     window.groupsData = groupsResponse.ok ? await groupsResponse.json() : [];
     renderAll();
@@ -369,6 +437,9 @@ document.addEventListener("change", event => {
     resourcesData[Number(target.dataset.index)].approved = target.checked;
     markResourcesDirty();
   }
+  if (target.matches('[data-collection="HOLIDAYS"]')) {
+    renderHolidays();
+  }
   if (target.matches(".time-input")) {
     const index = Number(target.dataset.index);
     const previous = data.TIMES[index];
@@ -438,12 +509,85 @@ document.addEventListener("click", event => {
   if (button.id === "addAssignmentBtn") {
     if (!data.COURSES.length) { alert("Add a course first."); return; }
     if (!data.ASSIGNMENTS) data.ASSIGNMENTS = [];
+    if (!data.HOLIDAYS) data.HOLIDAYS = [];
     data.ASSIGNMENTS.push({ courseId: data.COURSES[0].id, title: "", url: "", deadline: "" });
     markDirty(); renderAssignments();
+  }
+  if (button.id === "addHolidayBtn") {
+    if (!data.HOLIDAYS) data.HOLIDAYS = [];
+    const todayStr = new Date().toISOString().split("T")[0];
+    data.HOLIDAYS.push({ date: todayStr, name: "New Holiday" });
+    markDirty(); renderHolidays();
+  }
+  if (button.matches(".delete-holiday")) {
+    data.HOLIDAYS.splice(Number(button.dataset.index), 1);
+    markDirty(); renderHolidays();
   }
   if (button.matches(".delete-assignment")) {
     data.ASSIGNMENTS.splice(Number(button.dataset.index), 1);
     markDirty(); renderAssignments();
+  }
+  if (button.id === "addGroupBtn") {
+    const container = document.getElementById("newGroupContainer");
+    if (container) {
+      container.style.display = container.style.display === "none" ? "block" : "none";
+      if (container.style.display === "block") {
+        document.getElementById("newGroupSpec")?.focus();
+      }
+    }
+  }
+  if (button.id === "cancelNewGroupBtn") {
+    const container = document.getElementById("newGroupContainer");
+    if (container) container.style.display = "none";
+  }
+  if (button.id === "saveNewGroupBtn") {
+    const degree = document.getElementById("newGroupDegree").value.trim();
+    const spec = document.getElementById("newGroupSpec").value.trim();
+    const session = document.getElementById("newGroupSession").value.trim() || "2026-27";
+    const link = document.getElementById("newGroupLink").value.trim();
+
+    if (!degree || !spec) {
+      alert("Please enter both Degree and Specialization.");
+      return;
+    }
+    if (!/^https:\/\/teams\.microsoft\.com\/.+/i.test(link)) {
+      alert("Must be a valid Microsoft Teams link (starting with https://teams.microsoft.com/).");
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Saving...";
+
+    fetch("/api/groups", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ degree, specialization: spec, session, link })
+    })
+      .then(r => r.json())
+      .then(res => {
+        button.disabled = false;
+        button.innerHTML = '<span style="color:#ffffff !important; font-weight:700; margin:0; display:inline;">Save Group</span>';
+        if (res.error) {
+          alert(res.error);
+        } else {
+          showToast("Class group added successfully!");
+          document.getElementById("newGroupContainer").style.display = "none";
+          document.getElementById("newGroupSpec").value = "";
+          document.getElementById("newGroupLink").value = "";
+          // Refresh groups list from server
+          fetch("/api/groups", { cache: "no-store", credentials: "same-origin" })
+            .then(r => r.json())
+            .then(groups => {
+              window.groupsData = groups || [];
+              renderGroups();
+            });
+        }
+      })
+      .catch(e => {
+        button.disabled = false;
+        button.innerHTML = '<span style="color:#ffffff !important; font-weight:700; margin:0; display:inline;">Save Group</span>';
+        alert("Failed to save class group: " + e.message);
+      });
   }
   if (button.matches(".save-group")) {
     const index = Number(button.dataset.index);

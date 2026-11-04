@@ -55,6 +55,16 @@ main { width: min(1440px, 100%); margin: 0 auto; padding: 28px clamp(16px, 4vw, 
 .workspace-bar { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-top: 18px; padding: 16px 18px; border: 1px solid var(--line); background: #f0f2ef; }
 .workspace-bar strong, .workspace-bar span { display: block; }
 .workspace-bar span { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.workspace-bar button.primary,
+.workspace-bar button.primary span,
+#broadcastPushBtn,
+#broadcastPushBtn span {
+  color: #ffffff !important;
+  display: inline-flex !important;
+  margin-top: 0 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
 .search-field { width: min(360px, 100%); }
 .search-field span { margin: 0 0 6px; font-weight: 700; }
 .search-field input { width: 100%; min-height: 40px; padding: 8px 11px; border: 1px solid #bcbfba; background: #fff; }
@@ -67,7 +77,10 @@ main { width: min(1440px, 100%); margin: 0 auto; padding: 28px clamp(16px, 4vw, 
 .panel-heading { display: flex; align-items: start; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
 .panel-heading p { margin-bottom: 0; color: var(--muted); }
 
-.table-scroll { overflow-x: auto; border: 1px solid var(--line); background: var(--white); }
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); background: var(--white); -webkit-overflow-scrolling: touch; }
+#holidaysPanel table { min-width: 520px; }
+#groupsPanel table { min-width: 680px; }
+#assignmentsPanel table { min-width: 680px; }
 table { width: 100%; border-collapse: collapse; min-width: 960px; }
 th { padding: 11px 12px; background: #efefeb; color: #555550; font-size: 12px; text-align: left; }
 thead { position: sticky; top: 0; z-index: 1; }
@@ -94,6 +107,7 @@ td input, td select, .simple-list input, .program-card input { width: 100%; min-
 .toast.error-toast { border-left-color: #e47777; }
 
 @media (max-width: 760px) {
+  input, select, textarea { font-size: 16px !important; }
   .topbar { align-items: flex-start; }
   .brand-mark { display: none; }
   .publish-area { align-items: flex-end; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
@@ -103,7 +117,12 @@ td input, td select, .simple-list input, .program-card input { width: 100%; min-
   .status-band div:nth-child(2) { border-right: 0; }
   .status-band div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
   .panel-heading { align-items: stretch; flex-direction: column; gap: 12px; }
-  .panel-heading button { align-self: flex-start; }
+  .panel-heading button { width: 100%; min-height: 42px; justify-content: center; }
+  #notificationText { width: 100%; min-width: 0 !important; }
+  #broadcastPushBtn { width: 100% !important; min-height: 44px; justify-content: center; }
+  #newGroupContainer { padding: 14px !important; }
+  #newGroupContainer button { min-height: 42px; }
+  .tab { min-height: 44px; padding: 10px 14px; }
   .workspace-bar { align-items: stretch; flex-direction: column; }
   .search-field { width: 100%; }
   .toast { right: 16px; bottom: 16px; }
