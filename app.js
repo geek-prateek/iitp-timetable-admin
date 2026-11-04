@@ -200,6 +200,41 @@ function renderAssignments() {
   `).join("") || `<tr><td colspan="5" class="empty">No assignments added.</td></tr>`;
 }
 
+function renderHolidays() {
+  if (!data.HOLIDAYS) data.HOLIDAYS = [];
+  data.HOLIDAYS.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+  $("#holidayRows").innerHTML = data.HOLIDAYS.map((holiday, index) => {
+    let dayName = "";
+    if (holiday.date) {
+      try {
+        const parts = holiday.date.split("-");
+        if (parts.length === 3) {
+          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          dayName = d.toLocaleDateString("en-US", { weekday: "long" });
+        }
+      } catch (e) {}
+    }
+
+    return `
+      <tr>
+        <td>
+          <input type="date" data-collection="HOLIDAYS" data-index="${index}" data-field="date" value="${escapeHtml(holiday.date || "")}" aria-label="Holiday date" style="width: 100%; min-width: 150px;" />
+        </td>
+        <td>
+          <input type="text" data-collection="HOLIDAYS" data-index="${index}" data-field="name" value="${escapeHtml(holiday.name || "")}" placeholder="E.g. Diwali / Chhath Puja" aria-label="Holiday name" style="width: 100%;" />
+        </td>
+        <td style="color: var(--muted); font-weight: 600; font-size: 13px;">
+          ${escapeHtml(dayName || "—")}
+        </td>
+        <td>
+          <button class="icon-button delete-holiday" data-index="${index}" type="button" title="Delete holiday">&times;</button>
+        </td>
+      </tr>
+    `;
+  }).join("") || `<tr><td colspan="4" class="empty">No holidays added.</td></tr>`;
+}
+
 function renderAll() {
   renderSummary();
   renderCourses();
@@ -208,6 +243,7 @@ function renderAll() {
   renderPrograms();
   renderResourceHub();
   renderAssignments();
+  renderHolidays();
   renderGroups();
 }
 
@@ -256,6 +292,7 @@ async function loadData() {
     if (!response.ok) throw new Error("Could not load timetable data.");
     data = await response.json();
     if (!data.ASSIGNMENTS) data.ASSIGNMENTS = [];
+    if (!data.HOLIDAYS) data.HOLIDAYS = [];
     resourcesData = resResponse.ok ? await resResponse.json() : [];
     window.groupsData = groupsResponse.ok ? await groupsResponse.json() : [];
     renderAll();
@@ -369,6 +406,9 @@ document.addEventListener("change", event => {
     resourcesData[Number(target.dataset.index)].approved = target.checked;
     markResourcesDirty();
   }
+  if (target.matches('[data-collection="HOLIDAYS"]')) {
+    renderHolidays();
+  }
   if (target.matches(".time-input")) {
     const index = Number(target.dataset.index);
     const previous = data.TIMES[index];
@@ -438,8 +478,19 @@ document.addEventListener("click", event => {
   if (button.id === "addAssignmentBtn") {
     if (!data.COURSES.length) { alert("Add a course first."); return; }
     if (!data.ASSIGNMENTS) data.ASSIGNMENTS = [];
+    if (!data.HOLIDAYS) data.HOLIDAYS = [];
     data.ASSIGNMENTS.push({ courseId: data.COURSES[0].id, title: "", url: "", deadline: "" });
     markDirty(); renderAssignments();
+  }
+  if (button.id === "addHolidayBtn") {
+    if (!data.HOLIDAYS) data.HOLIDAYS = [];
+    const todayStr = new Date().toISOString().split("T")[0];
+    data.HOLIDAYS.push({ date: todayStr, name: "New Holiday" });
+    markDirty(); renderHolidays();
+  }
+  if (button.matches(".delete-holiday")) {
+    data.HOLIDAYS.splice(Number(button.dataset.index), 1);
+    markDirty(); renderHolidays();
   }
   if (button.matches(".delete-assignment")) {
     data.ASSIGNMENTS.splice(Number(button.dataset.index), 1);
