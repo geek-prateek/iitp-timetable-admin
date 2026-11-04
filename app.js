@@ -192,12 +192,12 @@ function renderAssignments() {
   $("#assignmentRows").innerHTML = (data.ASSIGNMENTS || []).map((assignment, index) => `
     <tr>
       <td><select data-collection="ASSIGNMENTS" data-index="${index}" data-field="courseId">${courseOptions.map(course => `<option value="${escapeHtml(course.value)}" ${course.value === assignment.courseId ? "selected" : ""}>${escapeHtml(course.label)}</option>`).join("")}</select></td>
-      <td><input class="name-input" data-collection="ASSIGNMENTS" data-index="${index}" data-field="title" value="${escapeHtml(assignment.title)}" aria-label="Assignment title" placeholder="E.g. Test Lab 3" /></td>
+      <td><input class="name-input" data-collection="ASSIGNMENTS" data-index="${index}" data-field="title" value="${escapeHtml(assignment.title)}" aria-label="Class work title" placeholder="E.g. Lab Task 3 / Case Study" /></td>
       <td><input class="url-input" type="url" data-collection="ASSIGNMENTS" data-index="${index}" data-field="url" value="${escapeHtml(assignment.url)}" aria-label="Assignment URL" /></td>
       <td><input class="name-input" data-collection="ASSIGNMENTS" data-index="${index}" data-field="deadline" value="${escapeHtml(assignment.deadline)}" aria-label="Deadline" placeholder="E.g. 11 Sept" /></td>
-      <td><button class="icon-button delete-assignment" data-index="${index}" type="button" title="Delete assignment">&times;</button></td>
+      <td><button class="icon-button delete-assignment" data-index="${index}" type="button" title="Delete class work">&times;</button></td>
     </tr>
-  `).join("") || `<tr><td colspan="5" class="empty">No assignments added.</td></tr>`;
+  `).join("") || `<tr><td colspan="5" class="empty">No class work added.</td></tr>`;
 }
 
 function renderHolidays() {
@@ -278,7 +278,7 @@ function validate() {
   if (!data.TIMES.length) return "Add at least one time slot.";
   if (data.COURSES.some(course => !course.name.trim() || !course.shortName.trim() || !course.code.trim())) return "Complete every course name, short name, and code.";
   if (data.PROGRAMS.some(program => !program.name.trim())) return "Complete every program name.";
-  if (data.ASSIGNMENTS && data.ASSIGNMENTS.some(a => !a.title.trim() || !a.url.trim())) return "Complete all assignment titles and URLs.";
+  if (data.ASSIGNMENTS && data.ASSIGNMENTS.some(a => !a.title.trim() || !a.url.trim())) return "Complete all class work titles and URLs.";
   return "";
 }
 
